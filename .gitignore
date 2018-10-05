@@ -1,3 +1,6 @@
+libs/
+obj/
+
 # Object files
 *.o
 *.ko
