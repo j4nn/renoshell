@@ -1,12 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <string.h>
 
 #include "sidtab.h"
 #include "policydb.h"
 #include "getroot.h"
-
-#define __user
-#define __kernel
 
 static inline struct flex_array* __kernel get_types_fa()
 {

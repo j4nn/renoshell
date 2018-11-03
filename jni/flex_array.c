@@ -1,8 +1,9 @@
 #include "flex_array.h"
 
-static inline __u32 reciprocal_divide(__u32 A, __u32 R)
+static inline __u32 reciprocal_divide(__u32 a, struct reciprocal_value R)
 {
-	return (__u32)(((__u64)A * R) >> 32);
+	__u32 t = (__u32)(((__u64)a * R.m) >> 32);
+	return (t + ((a - t) >> R.sh1)) >> R.sh2;
 }
 
 static int fa_element_to_part_nr(struct flex_array *fa,
@@ -61,14 +62,6 @@ void *flex_array_get_base(struct flex_array *fa, unsigned int element_nr)
 	return &part->elements[index_inside_part(fa, element_nr, part_nr)];
 }
 
-inline unsigned int flex_array_has_element(struct flex_array* fa, unsigned int element_nr)
-{
-	if (!fa->element_size)
-		return 0;
-	if (element_nr >= (unsigned int)fa->total_nr_elements)
-		return 0;
-	return 1;
-}
 
 void *flex_array_get(struct flex_array *fa, unsigned int element_nr)
 {

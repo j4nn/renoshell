@@ -1,6 +1,8 @@
 #ifndef THREADINFO_H
 #define THREADINFO_H
 
+#include <linux/types.h>
+
 //64bit structs according to sources from Z5 Lollipop 32.0.A.6.200
 //32bit structs according to sources from Z3C Lollipop 23.4.A.1.200
 
@@ -19,18 +21,6 @@ struct thread_info;
 struct list_head {
         struct list_head *next, *prev;
 };
-
-static inline struct thread_info* get_thread_info(unsigned long sp)
-{
-	return (struct thread_info*)(sp & ~(THREAD_SIZE - 1));
-}
-
-static inline struct thread_info* current_thread_info()
-{
-	unsigned long sp;
-	asm ("mov %[sp], sp" : [sp] "=r" (sp));
-	return get_thread_info(sp);
-}
 
 static inline int is_cpu_timer_valid(struct list_head* cpu_timer)
 {
@@ -64,9 +54,9 @@ struct task_struct_partial
 {
 	/* ... */
 	struct list_head cpu_timers[3];
+	struct cred *ptracer_cred;
 	struct cred *real_cred;
 	struct cred *cred;
-	struct cred *replacement_session_keyring;
 	char comm[16];
 	/* ... */
 };
@@ -86,6 +76,7 @@ struct cred {
 	kernel_cap_t	cap_permitted;	/* caps we're permitted */
 	kernel_cap_t	cap_effective;	/* caps we can actually use */
 	kernel_cap_t	cap_bset;	/* capability bounding set */
+	kernel_cap_t	cap_ambient;	/* Ambient capability set */
 	unsigned char	jit_keyring;	/* default keyring to attach requested
 					 * keys to */
 #if (__LP64__)
