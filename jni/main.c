@@ -123,7 +123,7 @@ int main(int argc, char **argv)
 	int uid;
 
 	PNFO("\nrenoshell - rename/notify temp root shell\n");
-	PNFO("https://github.com/j4nn/renoshell/README.md\n\n");
+	PNFO("https://github.com/j4nn/renoshell/\n\n");
 
 	my_task_name = strrchr(argv[0], '/');
 	if (my_task_name != NULL)
