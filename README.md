@@ -1,9 +1,7 @@
-# renoshell - rename/notify temp root shell
+# bindershell - temp root shell using CVE-2019-2215 for sony xperia xz1/xz1c/xzp phones
 
-A get root shell tool using remote arbitrary kernel space read and write api,
-which needs to be provided by another tool with an actual kernel exploit.
 This is forked from [iovyroot by dosomder](https://github.com/dosomder/iovyroot.git),
-replacing dependency on a specific vulnerability with a remote arbitrary
-kernel space read/write primitives.
-The code was debugged, fixed and adapted to be compatible with 4.4.74 kernel
-from xperia xz1c 47.1.A.2.324 android oreo firmware (includes selinux bypass).
+replacing the kernel space read/write primitives with those from CVE-2019-2215 su98.c exploit.
+The original su98.c did not properly patch security->sid and security->osid and did not include KASLR bypass.
+To get the sid and osid patching, it was easier to port just the primitives from su98 here.
+This code is compatible with several oreo firmwares of xperia xz1/xz1c/xzp phones (yoshino platform).
