@@ -13,22 +13,38 @@
 struct offsets offsets[] = {
 	// XZ1 Compact
 	{ "G8441_47.1.A.2.324",
-	  (void *)0xffffff800a8f84a0, (void *)0xffffff800a8f82b0, (void *)0xffffff800a655628, (void *)0xffffff800a8f4df4, (void *)0xffffff800a614490 },
+	  (void *)0xffffff800a8f84a0, (void *)0xffffff800a8f82b0, (void *)0xffffff800a8f4df4, (void *)0xffffff800a614490, (void *)0xffffff800a61de90 },
 	// XZ1 Compact
 	{ "G8441_47.1.A.8.49",
-	  (void *)0xffffff800a903460, (void *)0xffffff800a903270, (void *)0xffffff800a6550a8, (void *)0xffffff800a8ffdb4, (void *)0xffffff800a614490 },
+	  (void *)0xffffff800a903460, (void *)0xffffff800a903270, (void *)0xffffff800a8ffdb4, (void *)0xffffff800a614490, (void *)0xffffff800a61deb0 },
 	// XZ1
 	{ "G8341_47.1.A.2.324",
-	  (void *)0xffffff800a8f84a0, (void *)0xffffff800a8f82b0, (void *)0xffffff800a655628, (void *)0xffffff800a8f4df4, (void *)0xffffff800a614490 },
+	  (void *)0xffffff800a8f84a0, (void *)0xffffff800a8f82b0, (void *)0xffffff800a8f4df4, (void *)0xffffff800a614490, (void *)0xffffff800a61de90 },
 	// XZ1 dual
 	{ "G8342_47.1.A.2.281",
-	  (void *)0xffffff800a8f84a0, (void *)0xffffff800a8f82b0, (void *)0xffffff800a655628, (void *)0xffffff800a8f4df4, (void *)0xffffff800a614490 },
+	  (void *)0xffffff800a8f84a0, (void *)0xffffff800a8f82b0, (void *)0xffffff800a8f4df4, (void *)0xffffff800a614490, (void *)0xffffff800a61de90 },
 	// XZ Premium
 	{ "G8141_47.1.A.3.254",
-	  (void *)0xffffff800a901460, (void *)0xffffff800a901270, (void *)0xffffff800a6550a8, (void *)0xffffff800a8fddb4, (void *)0xffffff800a614490 },
+	  (void *)0xffffff800a901460, (void *)0xffffff800a901270, (void *)0xffffff800a8fddb4, (void *)0xffffff800a614490, (void *)0xffffff800a61deb0 },
 	// XZ Premium dual
 	{ "G8142_47.1.A.3.254",
-	  (void *)0xffffff800a901460, (void *)0xffffff800a901270, (void *)0xffffff800a6550a8, (void *)0xffffff800a8fddb4, (void *)0xffffff800a614490 },
+	  (void *)0xffffff800a901460, (void *)0xffffff800a901270, (void *)0xffffff800a8fddb4, (void *)0xffffff800a614490, (void *)0xffffff800a61deb0 },
+
+	// XZ1 Compact
+	{ "G8441_47.1.A.16.20",
+	  (void *)0xffffff800a903460, (void *)0xffffff800a903270, (void *)0xffffff800a8ffdb4, (void *)0xffffff800a614490, (void *)0xffffff800a61deb0 },
+	// XZ1
+	{ "G8341_47.1.A.16.20",
+	  (void *)0xffffff800a903460, (void *)0xffffff800a903270, (void *)0xffffff800a8ffdb4, (void *)0xffffff800a614490, (void *)0xffffff800a61deb0 },
+	// XZ1 dual
+	{ "G8342_47.1.A.16.20",
+	  (void *)0xffffff800a903460, (void *)0xffffff800a903270, (void *)0xffffff800a8ffdb4, (void *)0xffffff800a614490, (void *)0xffffff800a61deb0 },
+	// XZ Premium
+	{ "G8141_47.1.A.16.20",
+	  (void *)0xffffff800a903460, (void *)0xffffff800a903270, (void *)0xffffff800a8ffdb4, (void *)0xffffff800a614490, (void *)0xffffff800a61deb0 },
+	// XZ Premium dual
+	{ "G8142_47.1.A.16.20",
+	  (void *)0xffffff800a903460, (void *)0xffffff800a903270, (void *)0xffffff800a8ffdb4, (void *)0xffffff800a614490, (void *)0xffffff800a61deb0 },
 };
 
 static int get_targetid(char *id, int idsize)
@@ -80,9 +96,9 @@ end:
 
 	o->sidtab += kaslr_slide;
 	o->policydb += kaslr_slide;
-	o->selinux_enabled += kaslr_slide;
 	o->selinux_enforcing += kaslr_slide;
 	o->init_task += kaslr_slide;
+	o->init_user_ns += kaslr_slide;
 
 	return o;
 }

