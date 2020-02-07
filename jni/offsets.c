@@ -48,6 +48,26 @@ struct offsets offsets[] = {
 	// XZ Premium dual
 	{ "G8142_47.1.A.16.20",
 	  (void *)0xffffff800a903460, (void *)0xffffff800a903270, (void *)0xffffff800a8ffdb4, (void *)0xffffff800a614490, (void *)0xffffff800a61deb0 },
+
+	// Xperia XZ1 Canada (Freedom)
+	{ "G8343_47.1.A.12.150",
+	  (void *)0xffffff800a904460, (void *)0xffffff800a904270, (void *)0xffffff800a900db4, (void *)0xffffff800a614490, (void *)0xffffff800a61deb0 },
+	// Xperia XZ1 Canada (Freedom)
+	{ "G8343_47.1.A.12.205",
+	  (void *)0xffffff800a904460, (void *)0xffffff800a904270, (void *)0xffffff800a900db4, (void *)0xffffff800a614490, (void *)0xffffff800a61deb0 },
+
+	// Xperia XZ1 SO-01K (Docomo Japan)
+	{ "SO-01K_47.1.F.1.105",
+	  (void *)0xffffff800a904460, (void *)0xffffff800a904270, (void *)0xffffff800a900db4, (void *)0xffffff800a614490, (void *)0xffffff800a61deb0 },
+	// Xperia XZ1 Compact SO-02K (Docomo Japan)
+	{ "SO-02K_47.1.F.1.105",
+	  (void *)0xffffff800a903460, (void *)0xffffff800a903270, (void *)0xffffff800a8ffdb4, (void *)0xffffff800a614490, (void *)0xffffff800a61deb0 },
+	// Xperia XZ1 SOV36 (AU Japan)
+	{ "SOV36_47.1.C.9.106",
+	  (void *)0xffffff800a904460, (void *)0xffffff800a904270, (void *)0xffffff800a900db4, (void *)0xffffff800a614490, (void *)0xffffff800a61deb0 },
+	// Xperia XZ Premium SO-04J (Docomo Japan)
+	{ "SO-04J_47.1.F.1.105",
+	  (void *)0xffffff800a904460, (void *)0xffffff800a904270, (void *)0xffffff800a900db4, (void *)0xffffff800a614490, (void *)0xffffff800a61deb0 },
 };
 
 static int get_targetid(char *id, int idsize)
